@@ -2,7 +2,7 @@
 Sistema desktop em Python (Tkinter e SQLite) para gerenciamento de filas e senhas médicas. Possui totem de autoatendimento com triagem por 7 níveis de prioridade, painel de chamadas com tempo médio de espera, área do especialista para controle de consultas e módulo administrativo para gestão de especialidades, consultórios e histórico.
 
 ---
-<img src="imagens/inicial.png" alt="Tela Inicial do projeto" width="500" />
+<img src="imagens/inicial.png" alt="Tela Inicial do projeto" width="1000" style="display: block; margin: 0 auto;" />
 
 # Clínica Médica UDF — Sistema de Gerenciamento de Senhas
 
@@ -21,7 +21,7 @@ Projeto desenvolvido para a disciplina de **Estrutura de Dados II** — Centro U
 
 > Informar o fluxo de recepção e triagem de uma clínica médica que atende múltiplas especialidades como: **Clínica Geral**, **Cardiologia**, **Ortopedia** com possibilidade de expansão futura. O sistema resolve o problema de organização de filas mistas aplicando na prática conceitos de **Filas FIFO** e **Filas de Prioridade**, garantindo que pacientes preferenciais sejam atendidos na ordem correta de urgência sem perder o controle da ordem de chegada.
 
-<img src="imagens/senha.png" alt="Página de geração de senha" width="500" />
+<img src="imagens/senha.png" alt="Página de geração de senha" width="1000" style="display: block; margin: 0 auto;" />
 
 ## Funcionalidades Desenvolvidas
 
@@ -83,7 +83,7 @@ O sistema implementa uma regra de prioridade em **7 níveis**, onde **1 é a mai
 **Como funciona o desempate:**
 Quando dois ou mais pacientes possuem o **mesmo nível de prioridade**, o critério de desempate da tupla é o contador sequencial. Assim, quem chegou primeiro é atendido primeiro, preservando o comportamento **FIFO dentro de cada nível de prioridade**.
 
-<img src="imagens/espera.png" alt="Sala de espera" width="500" />
+<img src="imagens/espera.png" alt="Sala de espera" width="1000" style="display: block; margin: 0 auto;" style="display: block; margin: 0 auto;" style="display: block; margin: 0 auto;" />
 
 ### Cálculo do Tempo Estimado de Espera
 
@@ -170,7 +170,7 @@ Assim que você rodar esse comando:
 1. O arquivo de banco de dados **`clinica_medica.db`** será criado automaticamente na pasta.
 2. A janela principal do programa (**"Clínica Médica UDF — Sistema de Gerenciamento de Senhas"**) vai abrir na sua tela.
 
-<img src="imagens/adm.png" alt="Painel do ADM" width="500" />
+<img src="imagens/adm.png" alt="Painel do ADM" width="1000" style="display: block; margin: 0 auto;" />
 
 ---
 

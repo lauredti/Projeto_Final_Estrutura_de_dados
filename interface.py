@@ -2,6 +2,8 @@ import os
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 from PIL import Image, ImageTk
+
+# Importa a lógica de filas e as funções de banco/autenticação
 from filas import GerenciadorFilas, NIVEIS_PRIORIDADE
 from autenticador import (
     autenticar_usuario,
@@ -16,6 +18,7 @@ from autenticador import (
     listar_historico
 )
 
+# Paleta de cores usada em toda a interface
 COR_FUNDO = "#F0F4F8"
 COR_CARD = "#FFFFFF"
 COR_BORDA = "#90CAF9"
@@ -38,6 +41,7 @@ class AplicacaoClinica:
         self.janela = janela
         self.janela.title("Clínica Médica UDF — Sistema de Gerenciamento de Senhas")
         
+        # Define o tamanho da janela e centraliza na tela
         largura, altura = 1150, 740
         pos_x = (self.janela.winfo_screenwidth() // 2) - (largura // 2)
         pos_y = max(10, (self.janela.winfo_screenheight() // 2) - (altura // 2) - 20)
@@ -45,6 +49,7 @@ class AplicacaoClinica:
         self.janela.minsize(1024, 680)
         self.janela.configure(bg=COR_FUNDO)
 
+        # Inicializa o controlador das filas e as variáveis de estado da sessão
         self.gerenciador = GerenciadorFilas()
         self.especialista_logado = None
         self.senha_em_atendimento = None
@@ -52,14 +57,17 @@ class AplicacaoClinica:
         self.especialidade_selecionada_paciente = None
         self.ultimas_chamadas_painel = []
 
+        # Dicionários para controlar as abas e seus botões
         self.botoes_abas = {}
         self.quadros_abas = {}
 
+        # Configura visual, monta os componentes e carrega os dados iniciais
         self._configurar_estilos()
         self._construir_interface()
         self.atualizar_tudo()
 
     def _configurar_estilos(self):
+        # Personaliza tabelas e caixas de seleção do ttk
         estilo = ttk.Style()
         estilo.theme_use("clam")
 
@@ -95,6 +103,7 @@ class AplicacaoClinica:
         )
 
     def _criar_cartao(self, pai, **kwargs):
+        # Cria um container branco com borda azul clara
         return tk.Frame(
             pai,
             bg=COR_CARD,
@@ -105,6 +114,7 @@ class AplicacaoClinica:
         )
 
     def _construir_interface(self):
+        # Barra superior 
         topo = tk.Frame(self.janela, bg=COR_AZUL_ESCURO, height=66)
         topo.pack(fill="x")
         topo.pack_propagate(False)
@@ -112,6 +122,7 @@ class AplicacaoClinica:
         conteudo_topo = tk.Frame(topo, bg=COR_AZUL_ESCURO)
         conteudo_topo.pack(fill="both", expand=True, padx=24)
 
+        # Localiza e carrega a logo da clínica
         pasta_atual = os.path.dirname(os.path.abspath(__file__))
         caminho_logo = os.path.join(pasta_atual, "imagens", "logo.png")
         
@@ -120,10 +131,12 @@ class AplicacaoClinica:
 
         if os.path.exists(caminho_logo):
             try:
+                # Usa Pillow para redimensionar com alta nitidez
                 imagem_original = Image.open(caminho_logo).convert("RGBA")
                 imagem_suave = imagem_original.resize((42, 42), Image.Resampling.LANCZOS)
                 self.logo_img = ImageTk.PhotoImage(imagem_suave)
             except Exception:
+                # Fallback nativo do Tkinter caso o Pillow falhe
                 img_nativa = tk.PhotoImage(file=caminho_logo)
                 fator = max(1, img_nativa.height() // 42)
                 self.logo_img = img_nativa.subsample(fator, fator)
@@ -150,6 +163,7 @@ class AplicacaoClinica:
             fg="#BBDEFB"
         ).pack(side="right", pady=18)
 
+        # Barra de navegação das 4 abas principais
         barra_abas = tk.Frame(self.janela, bg=COR_FUNDO)
         barra_abas.pack(fill="x", padx=20, pady=(12, 0))
 
@@ -175,6 +189,7 @@ class AplicacaoClinica:
             btn.pack(side="left", padx=(0, 6))
             self.botoes_abas[chave] = btn
 
+        # Área central onde o conteúdo de cada aba será exibido
         self.container_principal = tk.Frame(self.janela, bg=COR_FUNDO)
         self.container_principal.pack(fill="both", expand=True, padx=20, pady=(0, 16))
 
@@ -190,14 +205,17 @@ class AplicacaoClinica:
             "adm": self.aba_adm
         }
 
+        # Constrói o conteúdo interno de todas as abas
         self._montar_aba_paciente()
         self._montar_aba_painel()
         self._montar_aba_especialista()
         self._montar_aba_adm()
 
+        # Abre o sistema na aba de autoatendimento
         self._selecionar_aba("paciente")
 
     def _selecionar_aba(self, chave_ativa):
+        # Mostra apenas a aba clicada e destaca o botão correspondente
         for chave, quadro in self.quadros_abas.items():
             if chave == chave_ativa:
                 quadro.pack(fill="both", expand=True)
@@ -216,14 +234,18 @@ class AplicacaoClinica:
                     activeforeground=COR_AZUL_ESCURO
                 )
 
+    # AUTOATENDIMENTO 
+
     def _montar_aba_paciente(self):
         centralizador = tk.Frame(self.aba_paciente, bg=COR_FUNDO)
         centralizador.pack(fill="both", expand=True)
 
+        # Cartão central fixo onde as 3 etapas se alternam
         self.recipiente_paciente = self._criar_cartao(centralizador, width=760, height=540)
         self.recipiente_paciente.place(relx=0.5, rely=0.5, anchor="center")
         self.recipiente_paciente.pack_propagate(False)
 
+        # Etapa 1: Escolha da especialidade 
         self.quadro_etapa1 = tk.Frame(self.recipiente_paciente, bg=COR_CARD, padx=45, pady=28)
         tk.Label(
             self.quadro_etapa1,
@@ -251,9 +273,11 @@ class AplicacaoClinica:
             fg=COR_TEXTO_SUAVE
         ).pack(pady=(0, 20))
 
+        # Container preenchido dinamicamente com os botões das especialidades ativas
         self.quadro_botoes_esp = tk.Frame(self.quadro_etapa1, bg=COR_CARD)
         self.quadro_botoes_esp.pack(fill="both", expand=True)
 
+        # Etapa 2: Escolha entre Normal ou Preferencial 
         self.quadro_etapa2 = tk.Frame(self.recipiente_paciente, bg=COR_CARD, padx=45, pady=28)
         tk.Label(
             self.quadro_etapa2,
@@ -335,6 +359,7 @@ class AplicacaoClinica:
             fg=COR_AZUL_ESCURO
         ).pack(anchor="w", pady=(14, 6))
 
+        # Lista os níveis de prioridade
         subgrupos = [chave for chave in NIVEIS_PRIORIDADE.keys() if chave != "Geral / Normal"]
         self.seletor_subgrupo = ttk.Combobox(
             self.quadro_etapa2,
@@ -377,6 +402,7 @@ class AplicacaoClinica:
             command=self._acao_gerar_senha
         ).pack(side="right")
 
+        # Etapa 3: Comprovante da senha gerada 
         self.quadro_etapa3 = tk.Frame(self.recipiente_paciente, bg=COR_CARD, padx=45, pady=24)
         tk.Label(
             self.quadro_etapa3,
@@ -461,11 +487,13 @@ class AplicacaoClinica:
         self._ir_etapa1()
 
     def _ir_etapa1(self):
+        # Volta para a tela inicial de escolha da especialidade
         self.quadro_etapa2.pack_forget()
         self.quadro_etapa3.pack_forget()
         self.quadro_etapa1.pack(fill="both", expand=True)
 
     def _selecionar_especialidade_paciente(self, esp_nome):
+        # Guarda a especialidade clicada e avança para a Etapa 2
         self.especialidade_selecionada_paciente = esp_nome
         self.rotulo_esp_escolhida.config(text=f"Especialidade selecionada: {esp_nome}")
         self.var_tipo_atendimento.set("Normal")
@@ -474,12 +502,14 @@ class AplicacaoClinica:
         self.quadro_etapa2.pack(fill="both", expand=True)
 
     def _alternar_subgrupo(self):
+        # Habilita o seletor de prioridade apenas se "Preferencial" estiver marcado
         if self.var_tipo_atendimento.get() == "Preferencial":
             self.seletor_subgrupo.config(state="readonly")
         else:
             self.seletor_subgrupo.config(state="disabled")
 
     def _acao_gerar_senha(self):
+        # Emite a senha no gerenciador de filas e exibe o comprovante na Etapa 3
         esp_nome = self.especialidade_selecionada_paciente
         if not esp_nome or esp_nome not in self.mapa_especialidades:
             messagebox.showwarning("Atenção", "Selecione uma especialidade médica ativa.")
@@ -507,7 +537,10 @@ class AplicacaoClinica:
         except Exception as erro:
             messagebox.showerror("Erro ao emitir senha", str(erro))
 
+    # PAINEL DE ESPERA 
+
     def _montar_aba_painel(self):
+        # Barra superior com resumo de pacientes aguardando e tempo por especialidade
         quadro_tempos = self._criar_cartao(self.aba_painel, padx=18, pady=10)
         quadro_tempos.pack(fill="x", pady=(10, 10))
 
@@ -532,6 +565,7 @@ class AplicacaoClinica:
         corpo = tk.Frame(self.aba_painel, bg=COR_FUNDO)
         corpo.pack(fill="both", expand=True, pady=(0, 4))
 
+        # Coluna esquerda: destaca a senha atual e o consultório
         coluna_esquerda = tk.Frame(corpo, bg=COR_AZUL_ESCURO, padx=22, pady=20)
         coluna_esquerda.place(relx=0.0, rely=0.0, relwidth=0.41, relheight=1.0)
 
@@ -597,6 +631,7 @@ class AplicacaoClinica:
             command=lambda: [self._ir_etapa1(), self._selecionar_aba("paciente")]
         ).pack(side="bottom", fill="x", pady=4)
 
+        # Coluna direita: tabelas com histórico recente de chamadas e próximos da fila
         coluna_direita = tk.Frame(corpo, bg=COR_FUNDO)
         coluna_direita.place(relx=0.43, rely=0.0, relwidth=0.57, relheight=1.0)
 
@@ -647,10 +682,13 @@ class AplicacaoClinica:
             self.tabela_espera.column(coluna, anchor="center", width=110)
         self.tabela_espera.pack(fill="both", expand=True)
 
+    # ÁREA DO ESPECIALISTA 
+
     def _montar_aba_especialista(self):
         self.quadro_esp_autenticacao = tk.Frame(self.aba_especialista, bg=COR_FUNDO)
         self.quadro_esp_autenticacao.pack(fill="both", expand=True)
 
+        # Cartão de Login do Especialista
         self.caixa_login_esp = self._criar_cartao(self.quadro_esp_autenticacao, width=480, height=440, padx=36, pady=30)
         self.caixa_login_esp.pack_propagate(False)
 
@@ -715,6 +753,7 @@ class AplicacaoClinica:
             command=self._mostrar_cadastro_esp
         ).pack(side="left", padx=(4, 0))
 
+        # Cartão de Cadastro de Novo Especialista 
         self.caixa_cadastro_esp = self._criar_cartao(self.quadro_esp_autenticacao, width=500, height=580, padx=36, pady=20)
         self.caixa_cadastro_esp.pack_propagate(False)
 
@@ -793,6 +832,7 @@ class AplicacaoClinica:
 
         self._mostrar_login_esp()
 
+        # Frame que será exibido após o especialista fazer login
         self.quadro_esp_trabalho = tk.Frame(self.aba_especialista, bg=COR_FUNDO)
 
     def _mostrar_login_esp(self):
@@ -804,6 +844,7 @@ class AplicacaoClinica:
         self.caixa_cadastro_esp.place(relx=0.5, rely=0.5, anchor="center")
 
     def _montar_painel_trabalho_especialista(self):
+        # Limpa e monta a tela de atendimento do médico logado
         for componente in self.quadro_esp_trabalho.winfo_children():
             componente.destroy()
 
@@ -871,6 +912,7 @@ class AplicacaoClinica:
         )
         self.rotulo_esp_status_atual.pack(pady=(0, 30))
 
+        # Botões de controle do fluxo da consulta
         botoes = tk.Frame(corpo, bg=COR_CARD)
         botoes.pack(pady=10)
 
@@ -927,6 +969,7 @@ class AplicacaoClinica:
         ).grid(row=0, column=3, padx=8)
 
     def _login_especialista(self):
+        # Valida usuário/senha e abre a sala de atendimento
         try:
             usuario = autenticar_usuario(self.campo_esp_usuario.get(), self.campo_esp_senha.get(), "ESPECIALISTA")
             self.especialista_logado = usuario
@@ -937,6 +980,7 @@ class AplicacaoClinica:
             messagebox.showerror("Erro de Autenticação", str(erro))
 
     def _logout_especialista(self):
+        # Encerra a sessão do médico e volta para a tela de login
         self.especialista_logado = None
         self.senha_em_atendimento = None
         self.quadro_esp_trabalho.pack_forget()
@@ -944,6 +988,7 @@ class AplicacaoClinica:
         self.quadro_esp_autenticacao.pack(fill="both", expand=True)
 
     def _cadastrar_novo_especialista(self):
+        # Salva um novo médico no banco e limpa os campos do formulário
         esp_nome = self.seletor_cad_esp.get()
         if not esp_nome:
             messagebox.showwarning("Aviso", "Selecione uma especialidade.")
@@ -967,6 +1012,7 @@ class AplicacaoClinica:
             messagebox.showerror("Erro no Cadastro", str(erro))
 
     def _esp_chamar_proxima(self):
+        # Puxa o paciente mais prioritário da especialidade do médico
         if self.senha_em_atendimento:
             messagebox.showwarning("Atendimento em curso", "Finalize ou marque ausência da senha atual antes de chamar a próxima.")
             return
@@ -986,6 +1032,7 @@ class AplicacaoClinica:
             messagebox.showerror("Erro", str(erro))
 
     def _esp_mudar_status(self, status):
+        # Atualiza a etapa do atendimento 
         if not self.senha_em_atendimento:
             messagebox.showwarning("Aviso", "Nenhuma senha foi chamada ainda.")
             return
@@ -999,10 +1046,13 @@ class AplicacaoClinica:
             self.senha_em_atendimento = None
         self.atualizar_tudo()
 
+    # ADMINISTRAÇÃO 
+
     def _montar_aba_adm(self):
         self.quadro_adm_autenticacao = tk.Frame(self.aba_adm, bg=COR_FUNDO)
         self.quadro_adm_autenticacao.pack(fill="both", expand=True)
 
+        # Cartão de Login do Administrador
         self.caixa_login_adm = self._criar_cartao(self.quadro_adm_autenticacao, width=480, height=440, padx=36, pady=30)
         self.caixa_login_adm.pack_propagate(False)
 
@@ -1067,6 +1117,7 @@ class AplicacaoClinica:
             command=self._mostrar_cadastro_adm
         ).pack(side="left", padx=(4, 0))
 
+        # Cartão de Cadastro de Novo Administrador
         self.caixa_cadastro_adm = self._criar_cartao(self.quadro_adm_autenticacao, width=480, height=515, padx=36, pady=24)
         self.caixa_cadastro_adm.pack_propagate(False)
 
@@ -1137,6 +1188,7 @@ class AplicacaoClinica:
 
         self._mostrar_login_adm()
 
+        # Frame que será exibido após o administrador fazer login
         self.quadro_adm_painel = tk.Frame(self.aba_adm, bg=COR_FUNDO)
 
     def _mostrar_login_adm(self):
@@ -1148,6 +1200,7 @@ class AplicacaoClinica:
         self.caixa_cadastro_adm.place(relx=0.5, rely=0.5, anchor="center")
 
     def _montar_painel_gestao_adm(self):
+        # Reconstrói as tabelas administrativas com os dados atualizados do banco
         for componente in self.quadro_adm_painel.winfo_children():
             componente.destroy()
 
@@ -1178,6 +1231,7 @@ class AplicacaoClinica:
         meio = tk.Frame(self.quadro_adm_painel, bg=COR_FUNDO)
         meio.pack(fill="both", expand=True, pady=4)
 
+        # Bloco esquerdo: cadastro e ativação/desativação de especialidades
         caixa_esp = self._criar_cartao(meio, padx=14, pady=10)
         caixa_esp.pack(side="left", fill="both", expand=True, padx=(0, 6))
 
@@ -1261,6 +1315,7 @@ class AplicacaoClinica:
             command=alternar_esp
         ).pack(fill="x", pady=(8, 0))
 
+        # Bloco direito: gerenciamento de médicos e seus consultórios
         caixa_prof = self._criar_cartao(meio, padx=14, pady=10)
         caixa_prof.pack(side="right", fill="both", expand=True, padx=(6, 0))
 
@@ -1337,6 +1392,7 @@ class AplicacaoClinica:
             command=excluir_prof
         ).pack(side="right", expand=True, fill="x", padx=(4, 0))
 
+        # Parte inferior: log completo dos atendimentos realizados
         caixa_historico = self._criar_cartao(self.quadro_adm_painel, padx=14, pady=10)
         caixa_historico.pack(fill="both", expand=True, pady=(6, 4))
 
@@ -1372,6 +1428,7 @@ class AplicacaoClinica:
             ))
 
     def _login_adm(self):
+        # Valida acesso do administrador e abre o painel de gestão
         try:
             self.adm_logado = autenticar_usuario(self.campo_adm_usuario.get(), self.campo_adm_senha.get(), "ADM")
             self.quadro_adm_autenticacao.pack_forget()
@@ -1381,12 +1438,14 @@ class AplicacaoClinica:
             messagebox.showerror("Erro de Login", str(erro))
 
     def _logout_adm(self):
+        # Sai do painel administrativo e volta para a tela de login
         self.adm_logado = None
         self.quadro_adm_painel.pack_forget()
         self._mostrar_login_adm()
         self.quadro_adm_autenticacao.pack(fill="both", expand=True)
 
     def _cadastrar_novo_adm(self):
+        # Cadastra um novo gestor no sistema
         try:
             cadastrar_adm(self.campo_cad_adm_nome.get(), self.campo_cad_adm_usuario.get(), self.campo_cad_adm_senha.get())
             messagebox.showinfo("Sucesso", "Novo administrador cadastrado! Agora você já pode fazer login.")
@@ -1397,7 +1456,10 @@ class AplicacaoClinica:
         except Exception as erro:
             messagebox.showerror("Erro", str(erro))
 
+    # ATUALIZAÇÃO GLOBAL DA INTERFACE
+    
     def atualizar_tudo(self):
+        # Busca especialidades ativas e recria os botões do autoatendimento
         especialidades = listar_especialidades(apenas_ativas=True)
         self.mapa_especialidades = {esp["nome"]: esp["id"] for esp in especialidades}
         nomes_esp = list(self.mapa_especialidades.keys())
@@ -1419,10 +1481,12 @@ class AplicacaoClinica:
                 command=lambda nome=esp["nome"]: self._selecionar_especialidade_paciente(nome)
             ).pack(fill="x", pady=6)
 
+        # Atualiza a lista de especialidades no cadastro de especialistas
         self.seletor_cad_esp["values"] = nomes_esp
         if nomes_esp and self.seletor_cad_esp.get() not in nomes_esp:
             self.seletor_cad_esp.set(nomes_esp[0])
 
+        # Atualiza o destaque principal do Painel de Espera com a última senha chamada
         if self.gerenciador.ultima_chamada:
             ultima = self.gerenciador.ultima_chamada
             self.rotulo_alerta_chamada.config(
@@ -1436,11 +1500,13 @@ class AplicacaoClinica:
                 text=f"Especialidade: {ultima['especialidade_nome']}\nCategoria: {ultima['categoria']}"
             )
 
+        # Atualiza a tabela de últimas senhas chamadas
         for item in self.tabela_ultimas.get_children():
             self.tabela_ultimas.delete(item)
         for chamada in self.ultimas_chamadas_painel[1:7]:
             self.tabela_ultimas.insert("", tk.END, values=(chamada["codigo"], chamada["consultorio"], chamada["especialidade_nome"], chamada["categoria"]))
 
+        # Recalcula o total de pacientes na fila e o tempo estimado de espera
         resumos_tempo = []
         total_geral = 0
         for esp in especialidades:
@@ -1452,6 +1518,7 @@ class AplicacaoClinica:
         self.rotulo_total_aguardando.config(text=f"Total de pacientes aguardando na clínica: {total_geral}")
         self.rotulo_quadro_tempos.config(text="   •   ".join(resumos_tempo))
 
+        # Atualiza a tabela de próximos pacientes ordenados por prioridade
         for item in self.tabela_espera.get_children():
             self.tabela_espera.delete(item)
 
@@ -1467,5 +1534,6 @@ class AplicacaoClinica:
                     f"{espera_min} min"
                 ))
 
+        # Se o admin estiver logado, recarrega as tabelas administrativas também
         if self.adm_logado:
             self._montar_painel_gestao_adm()
