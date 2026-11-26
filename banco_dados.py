@@ -1,16 +1,19 @@
+# Importa a biblioteca sqlite3
 import sqlite3
+# Importa datetime
 from datetime import datetime
 
+# Nome do banco de dados
 DB_NAME = "clinica_medica.db"
 
-
+# Se conecta ao banco de dados
 def conectar():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-
+# Cria as tabelas necessárias e as popula
 def inicializar_banco():
     conn = conectar()
     cursor = conn.cursor()
@@ -91,9 +94,11 @@ def inicializar_banco():
         ("Administrador Padrão", "admin", "123", "ADM")
     )
 
+# confirma todas as alterações feitas
     conn.commit()
+    # Fecha a conexão com o banco de dados
     conn.close()
 
-
+# Retorna a hora atual no formato HH:MM:SS
 def agora():
     return datetime.now().strftime("%H:%M:%S")
