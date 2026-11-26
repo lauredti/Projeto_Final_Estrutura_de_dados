@@ -1,30 +1,37 @@
-import heapq
-from collections import deque
-from banco_dados import conectar, agora
+import heapq  # Ajuda a organizar uma fila onde quem tem prioridade maior sai primeiro
+from collections import deque  # Uma fila comum onde o primeiro que entra é o primeiro que sai
+from banco_dados import conectar, agora  # Funções do seu projeto para ligar no banco e pegar a hora atual
 
+# Define qual número representa cada prioridade
 NIVEIS_PRIORIDADE = {
     "Urgente": 1,
     "Preferencial": 2,
     "Normal": 3
 }
 
+# Tempo médio estimado (em minutos) para cada atendimento
 TEMPO_MEDIO_MINUTOS = 30
 
 
 def classificar_paciente(genero, idade, gestante=False, lactante=False, pcd=False, obesidade=False):
+    # Garante que a idade seja um número inteiro e esteja dentro de um intervalo possível
     if not isinstance(idade, int) or idade < 0 or idade > 130:
         raise ValueError("Informe uma idade válida entre 0 e 130 anos.")
 
+    # Garante que o gênero escolhido seja uma das opções aceitas
     if genero not in ("Masculino", "Feminino", "Outro"):
         raise ValueError("Selecione um gênero válido.")
 
+    # Se não for do gênero feminino, desliga as opções de gestante e lactante
     if genero != "Feminino":
         gestante = False
         lactante = False
 
+    # Pessoas com mais de 80 anos já recebem prioridade "Urgente" na hora
     if idade > 80:
         return "Urgente", "Idoso 80+ (Urgente)"
 
+    # Cria uma lista para anotar todos os motivos que dão direito a atendimento preferencial
     condicoes = []
     if gestante:
         condicoes.append("Gestante")
@@ -39,24 +46,33 @@ def classificar_paciente(genero, idade, gestante=False, lactante=False, pcd=Fals
     elif genero == "Masculino" and idade >= 65:
         condicoes.append("Homem 65+")
 
+    # Se tiver pelo menos um motivo de preferência, retorna "Preferencial" com os motivos juntos
     if condicoes:
         return "Preferencial", ", ".join(condicoes)
 
+    # Se não se encaixou em nenhuma regra, vai para a fila normal
     return "Normal", "Geral / Normal"
 
 
 class GerenciadorFilas:
     def __init__(self):
+        # Guarda a fila de prioridade de cada especialidade médica 
         self.filas_prioridade = {}
+        # Guarda a fila normal de cada especialidade
         self.filas_normais = {}
+        # Contadores para gerar o número da senha de cada tipo por especialidade
         self.contadores_u = {}
         self.contadores_p = {}
         self.contadores_n = {}
+        # Número que vai subindo a cada senha para saber quem chegou antes em caso de empate
         self.ordem_global = 0
+        # Guarda a última senha que foi chamada no consultório
         self.ultima_chamada = None
+        # Puxa do banco de dados as senhas que já existiam antes de abrir o programa
         self.carregar_estado_banco()
 
     def _garantir_especialidade(self, especialidade_id):
+        # Se for a primeira vez mexendo nessa especialidade, cria as listas e contadores vazios dela
         if especialidade_id not in self.filas_prioridade:
             self.filas_prioridade[especialidade_id] = []
             self.filas_normais[especialidade_id] = deque()
@@ -65,13 +81,16 @@ class GerenciadorFilas:
             self.contadores_n[especialidade_id] = 0
 
     def carregar_estado_banco(self):
+        # Abre conexão com o banco de dados e cria o "cursor"
         conexao = conectar()
         cursor = conexao.cursor()
 
+        # Busca todas as especialidades ativas e prepara as estruturas
         cursor.execute("SELECT id FROM Especialidade WHERE status = 'ATIVA'")
         for linha in cursor.fetchall():
             self._garantir_especialidade(linha["id"])
 
+        # Conta quantas senhas já foram criadas antes para continuar a numeração sem repetir
         cursor.execute("SELECT especialidade_id, tipo FROM Senha")
         for linha in cursor.fetchall():
             especialidade_id = linha["especialidade_id"]
@@ -83,6 +102,7 @@ class GerenciadorFilas:
             else:
                 self.contadores_n[especialidade_id] += 1
 
+        # Pega do banco apenas as senhas que ainda estão esperando atendimento
         cursor.execute("""
             SELECT s.*, e.nome as esp_nome, e.sigla as esp_sigla
             FROM Senha s
@@ -94,6 +114,7 @@ class GerenciadorFilas:
             especialidade_id = linha["especialidade_id"]
             self._garantir_especialidade(especialidade_id)
             self.ordem_global += 1
+            # Monta um dicionário com os dados da senha para guardar na fila
             item = {
                 "codigo": linha["codigo"],
                 "tipo": linha["tipo"],
@@ -103,17 +124,22 @@ class GerenciadorFilas:
                 "especialidade_nome": linha["esp_nome"],
                 "ordem": self.ordem_global
             }
+            # Coloca a senha na fila de prioridade 
             heapq.heappush(self.filas_prioridade[especialidade_id], (item["nivel"], item["ordem"], item))
+            # Se for senha normal, também adiciona na fila normal
             if item["tipo"] == "Normal":
                 self.filas_normais[especialidade_id].append(item)
 
+        # Fecha a conexão com o banco para liberar recursos
         conexao.close()
 
     def emitir_senha(self, especialidade_id, genero, idade, gestante=False, lactante=False, pcd=False, obesidade=False):
+        # Descobre se o paciente é urgente, preferencial ou normal e qual o motivo
         tipo, motivo_prioridade = classificar_paciente(genero, idade, gestante, lactante, pcd, obesidade)
 
         conexao = conectar()
         cursor = conexao.cursor()
+        # Confere se a especialidade existe e está ativa
         cursor.execute("SELECT nome, sigla, status FROM Especialidade WHERE id = ?", (especialidade_id,))
         especialidade = cursor.fetchone()
 
@@ -123,6 +149,7 @@ class GerenciadorFilas:
 
         self._garantir_especialidade(especialidade_id)
 
+        # Aumenta o contador do tipo de senha e monta o código 
         if tipo == "Urgente":
             self.contadores_u[especialidade_id] += 1
             numero = self.contadores_u[especialidade_id]
@@ -139,6 +166,7 @@ class GerenciadorFilas:
         nivel = NIVEIS_PRIORIDADE[tipo]
         self.ordem_global += 1
 
+        # Reúne todas as informações da nova senha
         dados_senha = {
             "codigo": codigo,
             "tipo": tipo,
@@ -149,23 +177,28 @@ class GerenciadorFilas:
             "ordem": self.ordem_global
         }
 
+        # Insere a senha na fila de prioridade e, se for normal, também na fila normal
         heapq.heappush(self.filas_prioridade[especialidade_id], (nivel, self.ordem_global, dados_senha))
         if tipo == "Normal":
             self.filas_normais[especialidade_id].append(dados_senha)
 
+        # Salva a senha na tabela Senha com status mostrando que esta aguardando atendimento
         cursor.execute("""
             INSERT INTO Senha (codigo, tipo, categoria_prioridade, nivel_prioridade, especialidade_id, status)
             VALUES (?, ?, ?, ?, ?, 'AGUARDANDO')
         """, (codigo, tipo, motivo_prioridade, nivel, especialidade_id))
 
+        # Registra o início do histórico dessa senha com a hora atual
         cursor.execute("""
             INSERT INTO Historico_Atendimento (senha_codigo, especialidade_nome, categoria_prioridade, horario_emissao, status_final)
             VALUES (?, ?, ?, ?, 'AGUARDANDO')
         """, (codigo, especialidade["nome"], motivo_prioridade, agora()))
 
+        # Confirma (salva de verdade) as alterações no banco e fecha a conexão
         conexao.commit()
         conexao.close()
 
+        # Calcula em qual posição a senha ficou e quanto tempo estimado falta para ela ser chamada
         posicao = self.obter_posicao_senha(especialidade_id, codigo)
         tempo_estimado = (posicao - 1) * TEMPO_MEDIO_MINUTOS
 
@@ -173,32 +206,40 @@ class GerenciadorFilas:
 
     def consultar_proxima(self, especialidade_id):
         self._garantir_especialidade(especialidade_id)
+        # Se não tiver ninguém na fila, retorna None (vazio)
         if not self.filas_prioridade[especialidade_id]:
             return None
+        # Mostra quem seria o próximo a ser chamado, sem tirar da fila
         return self.filas_prioridade[especialidade_id][0][2]
 
     def chamar_proxima(self, especialidade_id, consultorio):
         self._garantir_especialidade(especialidade_id)
 
+        # Se a fila estiver vazia, avisa com um erro que não há ninguém aguardando
         if not self.filas_prioridade[especialidade_id]:
             raise IndexError("Não há pacientes aguardando na fila desta especialidade.")
 
+        # Tira e pega a senha com maior prioridade da fila
         _, _, senha_chamada = heapq.heappop(self.filas_prioridade[especialidade_id])
 
+        # Se for senha normal, também tira da frente da fila normal
         if senha_chamada["tipo"] == "Normal" and self.filas_normais[especialidade_id]:
             self.filas_normais[especialidade_id].popleft()
 
+        # Anota em qual consultório a pessoa foi chamada e guarda como última chamada
         senha_chamada["consultorio"] = consultorio
         self.ultima_chamada = senha_chamada
 
         conexao = conectar()
         cursor = conexao.cursor()
+        # Atualiza o status da senha no banco para 'CHAMADA' e salva o consultório
         cursor.execute("""
             UPDATE Senha
             SET status = 'CHAMADA', consultorio_destino = ?
             WHERE codigo = ?
         """, (consultorio, senha_chamada["codigo"]))
 
+        # Atualiza o histórico com o consultório e a hora em que foi chamada
         cursor.execute("""
             UPDATE Historico_Atendimento
             SET consultorio = ?, horario_chamada = ?, status_final = 'CHAMADA'
@@ -215,14 +256,17 @@ class GerenciadorFilas:
         cursor = conexao.cursor()
         hora_atual = agora()
 
+        # Muda o status da senha no banco 
         cursor.execute("UPDATE Senha SET status = ? WHERE codigo = ?", (novo_status, codigo_senha))
 
+        # Grava o horário de início
         if novo_status == "EM_ATENDIMENTO":
             cursor.execute("""
                 UPDATE Historico_Atendimento
                 SET horario_inicio = ?, status_final = ?
                 WHERE senha_codigo = ?
             """, (hora_atual, novo_status, codigo_senha))
+        # Se terminou ou o paciente faltou, grava o horário de fim
         elif novo_status in ("FINALIZADO", "AUSENTE"):
             cursor.execute("""
                 UPDATE Historico_Atendimento
@@ -235,10 +279,12 @@ class GerenciadorFilas:
 
     def listar_fila_ordenada(self, especialidade_id):
         self._garantir_especialidade(especialidade_id)
+        # Ordena as senhas por nível de prioridade e depois por ordem de chegada, sem estragar a fila original
         ordenados = sorted(self.filas_prioridade[especialidade_id], key=lambda item: (item[0], item[1]))
         return [item[2] for item in ordenados]
 
     def contar_por_categoria(self):
+        # Cria um placar zerado para contar quantas pessoas aguardam em cada tipo de senha
         contagem = {"Urgente": 0, "Preferencial": 0, "Normal": 0}
         for fila in self.filas_prioridade.values():
             for _, _, senha in fila:
@@ -247,12 +293,15 @@ class GerenciadorFilas:
         return contagem
 
     def obter_posicao_senha(self, especialidade_id, codigo_senha):
+        # Pega a fila já ordenada e procura o código da senha para dizer qual posição ela ocupa 
         fila = self.listar_fila_ordenada(especialidade_id)
         for indice, senha in enumerate(fila, start=1):
             if senha["codigo"] == codigo_senha:
                 return indice
+        # Se não achou na fila de espera, retorna 0
         return 0
 
     def calcular_tempo_espera_fila(self, especialidade_id):
+        # Multiplica a quantidade de pessoas na fila pelo tempo médio de atendimento
         fila = self.listar_fila_ordenada(especialidade_id)
         return len(fila) * TEMPO_MEDIO_MINUTOS
