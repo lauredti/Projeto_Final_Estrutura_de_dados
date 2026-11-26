@@ -10,9 +10,9 @@ Projeto desenvolvido para a disciplina de **Estrutura de Dados II** — Centro U
 
 ## Integrantes do Grupo
 
-* **Arthur** (`@lauredti`)
+* **Arthur Esteves** (`@ArthurEUDF`)
 * **Juan Moreira Braz** (`@Crustacomics`)
-* **Marcos Vinnicyus Araujo** (`@lauredti`)
+* **Marcos Vinnicyus Araujo** (`@vawkk`)
 * **Maria Laura Silva** (`@lauredti`)
 
 ---
@@ -21,14 +21,13 @@ Projeto desenvolvido para a disciplina de **Estrutura de Dados II** — Centro U
 
 > Informar o fluxo de recepção e triagem de uma clínica médica que atende múltiplas especialidades como: **Clínica Geral**, **Cardiologia**, **Ortopedia** com possibilidade de expansão futura. O sistema resolve o problema de organização de filas mistas aplicando na prática conceitos de **Filas FIFO** e **Filas de Prioridade**, garantindo que pacientes preferenciais sejam atendidos na ordem correta de urgência sem perder o controle da ordem de chegada.
 
-<img src="imagens/senha.png" alt="Página de geração de senha" width="1000" style="display: block; margin: 0 auto;" />
-
 ## Funcionalidades Desenvolvidas
 
 O sistema é dividido em quatro páginas principais acessíveis por abas na interface:
 
 1. **Autoatendimento (Paciente):**
    * Escolha da especialidade médica ativa em 3 etapas simples.
+   * Coleta dos dados de triagem: **gênero**, **idade**, **gestante**, **lactante**, **necessidade especial (PCD)** e **obesidade**.
    * Seleção entre atendimento **Geral / Normal** ou **Prioritário / Preferencial**, com escolha obrigatória do subgrupo prioritário.
    * Geração de senha unindo a sigla da especialidade e o contador sequencial (ex.: `CG-N001`, `CA-P001`, `OR-N002`).
    * Exibição imediata da posição atual na fila e do tempo estimado de espera.
@@ -48,6 +47,8 @@ O sistema é dividido em quatro páginas principais acessíveis por abas na inte
    * Cadastro e ativação/desativação de especialidades médicas (bloqueando a desativação caso existam pacientes aguardando naquela fila).
    * Gerenciamento de especialistas e alteração de consultórios.
    * Consulta ao histórico completo de atendimentos com horários de emissão, chamada, início, fim e status final.
+
+<img src="imagens/senha.png" alt="Página de geração de senha" width="1000" style="display: block; margin: 0 auto;" />
 
 ---
 
@@ -72,7 +73,7 @@ O sistema implementa uma regra de prioridade em **7 níveis**, onde **1 é a mai
 
 | Nível | Categoria / Subgrupo | Tipo de Senha |
 | :---: | :--- | :---: | 
-| **1** | Idosos 80+ | Preferencial (`P`) |
+| **1** | Idosos 80+ | Urgente (`U`) |
 | **2** | Idosos (60 a 79 anos) | Preferencial (`P`) |
 | **3** | PCD (Pessoa com Deficiência) | Preferencial (`P`) | 
 | **4** | Gestantes | Preferencial (`P`) | 
@@ -105,6 +106,49 @@ O sistema trata erros operacionais e entradas inválidas para evitar falhas dura
 
 ---
 
+## Funções Implementadas por Módulo
+
+### `filas.py` — Classificação, Geração de Senhas e Gerenciamento de Filas
+* `classificar_paciente(genero, idade, gestante, lactante, pcd, obesidade)`: Valida os dados de triagem e retorna automaticamente a categoria (`Urgente`, `Preferencial` ou `Normal`) e o critério identificado.
+* `GerenciadorFilas.emitir_senha(...)`: Classifica o paciente, incrementa o contador sequencial da categoria (`U`, `P` ou `N`), insere na fila de prioridade, persiste no banco SQLite e calcula a posição e o tempo de espera.
+* `GerenciadorFilas.consultar_proxima(especialidade_id)`: Consulta a próxima senha a ser chamada sem removê-la da fila.
+* `GerenciadorFilas.chamar_proxima(especialidade_id, consultorio)`: Remove a senha mais prioritária da fila, registra o consultório e atualiza o painel e o histórico.
+* `GerenciadorFilas.atualizar_status_atendimento(codigo_senha, novo_status)`: Atualiza o estado da consulta para `EM_ATENDIMENTO`, `FINALIZADO` ou `AUSENTE`.
+* `GerenciadorFilas.listar_fila_ordenada(especialidade_id)`: Retorna a fila ordenada por prioridade e ordem de chegada.
+* `GerenciadorFilas.contar_por_categoria()`: Contabiliza quantos pacientes aguardam em cada categoria (`Urgente`, `Preferencial`, `Normal`).
+
+### `autenticador.py` — Autenticação, Especialistas e Administração
+* `autenticar_usuario(usuario, senha, perfil_esperado)`: Valida credenciais de especialistas e administradores.
+* `cadastrar_especialista(...)`, `atualizar_consultorio_especialista(...)`, `remover_especialista(...)`: Gerenciam os profissionais e consultórios.
+* `cadastrar_especialidade(...)`, `alternar_status_especialidade(...)`: Gerenciam especialidades médicas ativas e inativas.
+* `listar_especialidades(...)`, `listar_profissionais()`, `listar_historico()`: Consultam os registros no banco de dados.
+
+### `banco_dados.py` — Persistência SQLite
+* `conectar()`: Abre conexão com o banco `clinica_medica.db` com chaves estrangeiras ativadas.
+* `inicializar_banco()`: Cria as tabelas (`Especialidade`, `Usuarios`, `Profissional_Consultorio`, `Senha`, `Historico_Atendimento`) e insere dados iniciais padrão.
+
+### `interface.py` e `principal.py` — Interface Gráfica e Execução
+* `AplicacaoClinica`: Controla a navegação entre abas, formulários de triagem com validação, painel de espera em tempo real, sala do especialista e painel administrativo.
+* `principal()`: Inicializa o banco de dados e inicia o loop principal da aplicação.
+
+---
+
+## Exemplos de Utilização
+
+### Cenário 1: Geração e Classificação Automática de Senhas
+1. Na aba **1. Autoatendimento**, o atendente ou paciente seleciona **Clínica Geral**.
+2. Preenche os dados do primeiro paciente: Gênero `Masculino`, Idade `28`, nenhuma condição marcada → Sistema classifica como **Normal** e emite **`CG-N001`**.
+3. Cadastra o segundo paciente: Gênero `Feminino`, Idade `30`, marca `Gestante` → Sistema classifica como **Preferencial** e emite **`CG-P001`**.
+4. Cadastra o terceiro paciente: Gênero `Masculino`, Idade `84` → Sistema classifica como **Urgente** e emite **`CG-U001`**.
+
+### Cenário 2: Ordem de Chamada e Painel de Espera
+1. Na aba **2. Painel de Espera**, o contador exibe: `Total aguardando: 3 | Urgente (U): 1 • Preferencial (P): 1 • Normal (N): 1`, e a lista de próximos exibe a ordem exata: **`CG-U001`** → **`CG-P001`** → **`CG-N001`**.
+2. Na aba **3. Área do Especialista**, o médico clica em **1. Chamar Próxima Senha**:
+   * A primeira chamada chama **`CG-U001`** (Urgente), mesmo tendo sido emitida por último.
+   * Após clicar em **2. Iniciar Atendimento** e **3. Finalizar Consulta**, a senha `CG-U001` é encerrada e não retorna à fila.
+   * A chamada seguinte chama **`CG-P001`** (Preferencial) e, por fim, **`CG-N001`** (Normal).
+
+---
 
 ##  Instruções de Instalação e Execução
 
@@ -126,24 +170,23 @@ Antes de começar, verifique se você possui:
     ```bash
     sudo apt update && sudo apt install python3-tk
     ```
----
 
-##  Passo a Passo de Instalação
+### Passo a Passo de Instalação
 
-### Passo 1: Verifique se o Python está instalado
+## Passo 1: Verifique se o Python está instalado
 Abra o terminal ou Prompt de Comando / PowerShell e digite:
 ```bash
 python --version
 ```
 *(No Linux ou macOS, use `python3 --version`)*
 
-### Passo 2: Entre na pasta do projeto
+## Passo 2: Entre na pasta do projeto
 No terminal, vá até a pasta onde estão os arquivos `.py` do sistema:
 ```bash
 cd caminho/da/pasta/do/projeto
 ```
 
-### Passo 3: Instale a biblioteca Pillow
+## Passo 3: Instale a biblioteca Pillow
 Digite o comando abaixo no terminal:
 ```bash
 pip install pillow
@@ -185,4 +228,8 @@ sistema-clinica-medica/
 ├── banco_dados.py      # Criação das tabelas SQLite, conexão e dados iniciais padrão
 ├── imagens/
 │   └── logo.png        # Logotipo exibido no cabeçalho da aplicação
+│   └── inicial.png     # Imagem da tela inicial do projeto
+│   └── senha.png       # Imagem do página de gerar senha
+│   └── espera.png      # Imagem da página de espera
+│   └── adm.png         # Imagem do painel do Administrador
 └── README.md           # Documentação do projeto

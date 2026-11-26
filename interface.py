@@ -4,7 +4,7 @@ from tkinter import ttk, messagebox, simpledialog
 from PIL import Image, ImageTk
 
 # Importa a lógica de filas e as funções de banco/autenticação
-from filas import GerenciadorFilas, NIVEIS_PRIORIDADE
+from filas import GerenciadorFilas
 from autenticador import (
     autenticar_usuario,
     cadastrar_especialista,
@@ -241,7 +241,7 @@ class AplicacaoClinica:
         centralizador.pack(fill="both", expand=True)
 
         # Cartão central fixo onde as 3 etapas se alternam
-        self.recipiente_paciente = self._criar_cartao(centralizador, width=760, height=540)
+        self.recipiente_paciente = self._criar_cartao(centralizador, width=780, height=565)
         self.recipiente_paciente.place(relx=0.5, rely=0.5, anchor="center")
         self.recipiente_paciente.pack_propagate(False)
 
@@ -267,7 +267,7 @@ class AplicacaoClinica:
 
         tk.Label(
             self.quadro_etapa1,
-            text="Selecione a especialidade desejada para iniciar seu atendimento:",
+            text="Selecione a especialidade desejada para iniciar sua triagem:",
             font=("Arial", 12),
             bg=COR_CARD,
             fg=COR_TEXTO_SUAVE
@@ -277,8 +277,8 @@ class AplicacaoClinica:
         self.quadro_botoes_esp = tk.Frame(self.quadro_etapa1, bg=COR_CARD)
         self.quadro_botoes_esp.pack(fill="both", expand=True)
 
-        # Etapa 2: Escolha entre Normal ou Preferencial 
-        self.quadro_etapa2 = tk.Frame(self.recipiente_paciente, bg=COR_CARD, padx=45, pady=28)
+        # Etapa 2: Dados de Triagem para Classificação Automática
+        self.quadro_etapa2 = tk.Frame(self.recipiente_paciente, bg=COR_CARD, padx=45, pady=20)
         tk.Label(
             self.quadro_etapa2,
             text="ETAPA 2 DE 3",
@@ -286,92 +286,134 @@ class AplicacaoClinica:
             bg=COR_AZUL_CLARO,
             fg=COR_AZUL_ESCURO,
             padx=14,
-            pady=5
-        ).pack(pady=(4, 10))
+            pady=4
+        ).pack(pady=(0, 6))
 
         tk.Label(
             self.quadro_etapa2,
-            text="Tipo de Atendimento",
-            font=("Arial", 22, "bold"),
+            text="Dados da Triagem",
+            font=("Arial", 20, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_ESCURO
-        ).pack(pady=(0, 4))
+        ).pack()
 
         self.rotulo_esp_escolhida = tk.Label(
             self.quadro_etapa2,
             text="Especialidade: ---",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_MEDIO
         )
-        self.rotulo_esp_escolhida.pack(pady=(0, 14))
+        self.rotulo_esp_escolhida.pack(pady=(2, 10))
 
-        self.var_tipo_atendimento = tk.StringVar(value="Normal")
-        caixa_opcoes = tk.Frame(
+        linha_dados = tk.Frame(self.quadro_etapa2, bg=COR_CARD)
+        linha_dados.pack(fill="x", pady=(0, 10))
+
+        col_genero = tk.Frame(linha_dados, bg=COR_CARD)
+        col_genero.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        tk.Label(col_genero, text="Gênero do Paciente:", font=("Arial", 11, "bold"), bg=COR_CARD, fg=COR_AZUL_ESCURO).pack(anchor="w")
+        self.seletor_genero = ttk.Combobox(
+            col_genero,
+            values=["Feminino", "Masculino", "Outro"],
+            state="readonly",
+            font=("Arial", 11)
+        )
+        self.seletor_genero.set("Feminino")
+        self.seletor_genero.pack(fill="x", pady=(4, 0))
+        self.seletor_genero.bind("<<ComboboxSelected>>", lambda e: self._atualizar_opcoes_genero())
+
+        col_idade = tk.Frame(linha_dados, bg=COR_CARD)
+        col_idade.pack(side="right", fill="x", expand=True, padx=(10, 0))
+        tk.Label(col_idade, text="Idade (anos):", font=("Arial", 11, "bold"), bg=COR_CARD, fg=COR_AZUL_ESCURO).pack(anchor="w")
+        self.campo_idade = tk.Entry(
+            col_idade,
+            font=("Arial", 12),
+            bg=COR_FUNDO,
+            relief="flat",
+            highlightbackground=COR_BORDA,
+            highlightthickness=2
+        )
+        self.campo_idade.pack(fill="x", ipady=5, pady=(4, 0))
+
+        caixa_condicoes = tk.Frame(
             self.quadro_etapa2,
             bg=COR_FUNDO,
             highlightbackground=COR_BORDA,
             highlightthickness=2,
             padx=20,
-            pady=14
+            pady=12
         )
-        caixa_opcoes.pack(fill="x", pady=6)
+        caixa_condicoes.pack(fill="x", pady=6)
 
         tk.Label(
-            caixa_opcoes,
-            text="Selecione a categoria de atendimento:",
+            caixa_condicoes,
+            text="Marque as condições aplicáveis ao paciente (classificação automática):",
             font=("Arial", 11, "bold"),
             bg=COR_FUNDO,
             fg=COR_AZUL_ESCURO
         ).pack(anchor="w", pady=(0, 8))
 
-        tk.Radiobutton(
-            caixa_opcoes,
-            text="Atendimento Geral / Normal (N)",
-            variable=self.var_tipo_atendimento,
-            value="Normal",
-            font=("Arial", 12, "bold"),
-            bg=COR_FUNDO,
-            fg=COR_TEXTO_PRINCIPAL,
-            activebackground=COR_FUNDO,
-            selectcolor=COR_CARD,
-            command=self._alternar_subgrupo
-        ).pack(anchor="w", pady=4)
+        self.var_gestante = tk.BooleanVar(value=False)
+        self.var_lactante = tk.BooleanVar(value=False)
+        self.var_pcd = tk.BooleanVar(value=False)
+        self.var_obesidade = tk.BooleanVar(value=False)
 
-        tk.Radiobutton(
-            caixa_opcoes,
-            text="Atendimento Prioritário / Preferencial (P)",
-            variable=self.var_tipo_atendimento,
-            value="Preferencial",
-            font=("Arial", 12, "bold"),
+        self.chk_gestante = tk.Checkbutton(
+            caixa_condicoes,
+            text="Paciente gestante",
+            variable=self.var_gestante,
+            font=("Arial", 11, "bold"),
             bg=COR_FUNDO,
             fg=COR_TEXTO_PRINCIPAL,
             activebackground=COR_FUNDO,
-            selectcolor=COR_CARD,
-            command=self._alternar_subgrupo
-        ).pack(anchor="w", pady=4)
+            selectcolor=COR_CARD
+        )
+        self.chk_gestante.pack(anchor="w", pady=2)
+
+        self.chk_lactante = tk.Checkbutton(
+            caixa_condicoes,
+            text="Paciente lactante",
+            variable=self.var_lactante,
+            font=("Arial", 11, "bold"),
+            bg=COR_FUNDO,
+            fg=COR_TEXTO_PRINCIPAL,
+            activebackground=COR_FUNDO,
+            selectcolor=COR_CARD
+        )
+        self.chk_lactante.pack(anchor="w", pady=2)
+
+        tk.Checkbutton(
+            caixa_condicoes,
+            text="Apresenta necessidade especial (PCD)",
+            variable=self.var_pcd,
+            font=("Arial", 11, "bold"),
+            bg=COR_FUNDO,
+            fg=COR_TEXTO_PRINCIPAL,
+            activebackground=COR_FUNDO,
+            selectcolor=COR_CARD
+        ).pack(anchor="w", pady=2)
+
+        tk.Checkbutton(
+            caixa_condicoes,
+            text="Possui condição de obesidade",
+            variable=self.var_obesidade,
+            font=("Arial", 11, "bold"),
+            bg=COR_FUNDO,
+            fg=COR_TEXTO_PRINCIPAL,
+            activebackground=COR_FUNDO,
+            selectcolor=COR_CARD
+        ).pack(anchor="w", pady=2)
 
         tk.Label(
             self.quadro_etapa2,
-            text="Subgrupo de Prioridade (obrigatório caso seja Prioritário):",
-            font=("Arial", 11, "bold"),
+            text="Regras: Acima de 80 anos = Urgente (U) | Condições acima, Mulher 60+ ou Homem 65+ = Preferencial (P)",
+            font=("Arial", 9, "italic"),
             bg=COR_CARD,
-            fg=COR_AZUL_ESCURO
-        ).pack(anchor="w", pady=(14, 6))
-
-        # Lista os níveis de prioridade
-        subgrupos = [chave for chave in NIVEIS_PRIORIDADE.keys() if chave != "Geral / Normal"]
-        self.seletor_subgrupo = ttk.Combobox(
-            self.quadro_etapa2,
-            values=subgrupos,
-            state="disabled",
-            font=("Arial", 12)
-        )
-        self.seletor_subgrupo.set("Idosos 80+")
-        self.seletor_subgrupo.pack(fill="x", pady=(0, 20))
+            fg=COR_TEXTO_SUAVE
+        ).pack(pady=(6, 12))
 
         botoes_etapa2 = tk.Frame(self.quadro_etapa2, bg=COR_CARD)
-        botoes_etapa2.pack(fill="x", pady=6)
+        botoes_etapa2.pack(fill="x", pady=4)
 
         tk.Button(
             botoes_etapa2,
@@ -389,14 +431,14 @@ class AplicacaoClinica:
 
         tk.Button(
             botoes_etapa2,
-            text="Emitir Senha →",
+            text="Classificar e Emitir Senha →",
             font=("Arial", 12, "bold"),
             bg=COR_AZUL_PRIMARIO,
             fg="white",
             activebackground=COR_AZUL_ESCURO,
             activeforeground="white",
             relief="flat",
-            padx=28,
+            padx=24,
             pady=11,
             cursor="hand2",
             command=self._acao_gerar_senha
@@ -416,7 +458,7 @@ class AplicacaoClinica:
 
         tk.Label(
             self.quadro_etapa3,
-            text="Sua senha foi gerada com sucesso",
+            text="Sua senha foi classificada e gerada",
             font=("Arial", 20, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_ESCURO
@@ -492,40 +534,62 @@ class AplicacaoClinica:
         self.quadro_etapa3.pack_forget()
         self.quadro_etapa1.pack(fill="both", expand=True)
 
+    def _atualizar_opcoes_genero(self):
+        # Habilita gestante e lactante apenas quando o gênero selecionado for Feminino
+        if self.seletor_genero.get() == "Feminino":
+            self.chk_gestante.config(state="normal")
+            self.chk_lactante.config(state="normal")
+        else:
+            self.var_gestante.set(False)
+            self.var_lactante.set(False)
+            self.chk_gestante.config(state="disabled")
+            self.chk_lactante.config(state="disabled")
+
     def _selecionar_especialidade_paciente(self, esp_nome):
-        # Guarda a especialidade clicada e avança para a Etapa 2
+        # Guarda a especialidade clicada, reseta os campos e avança para a Etapa 2
         self.especialidade_selecionada_paciente = esp_nome
         self.rotulo_esp_escolhida.config(text=f"Especialidade selecionada: {esp_nome}")
-        self.var_tipo_atendimento.set("Normal")
-        self._alternar_subgrupo()
+        self.seletor_genero.set("Feminino")
+        self.campo_idade.delete(0, tk.END)
+        self.var_gestante.set(False)
+        self.var_lactante.set(False)
+        self.var_pcd.set(False)
+        self.var_obesidade.set(False)
+        self._atualizar_opcoes_genero()
         self.quadro_etapa1.pack_forget()
         self.quadro_etapa2.pack(fill="both", expand=True)
 
-    def _alternar_subgrupo(self):
-        # Habilita o seletor de prioridade apenas se "Preferencial" estiver marcado
-        if self.var_tipo_atendimento.get() == "Preferencial":
-            self.seletor_subgrupo.config(state="readonly")
-        else:
-            self.seletor_subgrupo.config(state="disabled")
-
     def _acao_gerar_senha(self):
-        # Emite a senha no gerenciador de filas e exibe o comprovante na Etapa 3
+        # Valida os dados, emite a senha no gerenciador e exibe o comprovante na Etapa 3
         esp_nome = self.especialidade_selecionada_paciente
         if not esp_nome or esp_nome not in self.mapa_especialidades:
             messagebox.showwarning("Atenção", "Selecione uma especialidade médica ativa.")
             self._ir_etapa1()
             return
 
+        idade_texto = self.campo_idade.get().strip()
+        if not idade_texto.isdigit():
+            messagebox.showwarning("Dado Inválido", "Informe uma idade numérica válida (ex: 35).")
+            return
+
+        idade = int(idade_texto)
+        genero = self.seletor_genero.get()
         esp_id = self.mapa_especialidades[esp_nome]
-        tipo = self.var_tipo_atendimento.get()
-        categoria = self.seletor_subgrupo.get() if tipo == "Preferencial" else "Geral / Normal"
 
         try:
-            dados_senha, posicao, tempo_min = self.gerenciador.emitir_senha(esp_id, tipo, categoria)
+            dados_senha, posicao, tempo_min = self.gerenciador.emitir_senha(
+                esp_id,
+                genero,
+                idade,
+                self.var_gestante.get(),
+                self.var_lactante.get(),
+                self.var_pcd.get(),
+                self.var_obesidade.get()
+            )
             self.rotulo_bilhete_codigo.config(text=dados_senha["codigo"])
             self.rotulo_bilhete_info.config(
                 text=f"Especialidade: {dados_senha['especialidade_nome']}\n"
-                     f"Categoria: {dados_senha['categoria']} (Prioridade Nível {dados_senha['nivel']})\n"
+                     f"Categoria: {dados_senha['tipo']} ({dados_senha['categoria']})\n"
                      f"Posição atual na fila: {posicao}º"
             )
             self.rotulo_bilhete_espera.config(
@@ -546,8 +610,8 @@ class AplicacaoClinica:
 
         self.rotulo_total_aguardando = tk.Label(
             quadro_tempos,
-            text="Total de pacientes aguardando: 0",
-            font=("Arial", 13, "bold"),
+            text="Total aguardando: 0  |  Urgente (U): 0  •  Preferencial (P): 0  •  Normal (N): 0",
+            font=("Arial", 12, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_ESCURO
         )
@@ -591,7 +655,7 @@ class AplicacaoClinica:
         self.rotulo_painel_senha = tk.Label(
             coluna_esquerda,
             text="--",
-            font=("Arial", 58, "bold"),
+            font=("Arial", 54, "bold"),
             bg=COR_AZUL_ESCURO,
             fg=COR_DESTAQUE_OURO
         )
@@ -665,7 +729,7 @@ class AplicacaoClinica:
 
         tk.Label(
             caixa_espera,
-            text="Próximos na Fila (Ordem de Prioridade)",
+            text="Próximos na Fila (Precedência: Urgente > Preferencial > Normal)",
             font=("Arial", 13, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_ESCURO
@@ -675,8 +739,8 @@ class AplicacaoClinica:
         self.tabela_espera = ttk.Treeview(caixa_espera, columns=colunas, show="headings", height=6)
         self.tabela_espera.heading("codigo", text="Senha")
         self.tabela_espera.heading("especialidade", text="Especialidade")
-        self.tabela_espera.heading("tipo", text="Tipo")
-        self.tabela_espera.heading("categoria", text="Prioridade")
+        self.tabela_espera.heading("tipo", text="Categoria")
+        self.tabela_espera.heading("categoria", text="Critério")
         self.tabela_espera.heading("espera", text="Espera Est.")
         for coluna in colunas:
             self.tabela_espera.column(coluna, anchor="center", width=110)
@@ -881,7 +945,7 @@ class AplicacaoClinica:
             command=self._logout_especialista
         ).pack(side="right")
 
-        corpo = self._criar_cartao(self.quadro_esp_trabalho, padx=30, pady=28)
+        corpo = self._criar_cartao(self.quadro_esp_trabalho, padx=30, pady=24)
         corpo.pack(fill="both", expand=True, pady=(0, 8))
 
         tk.Label(
@@ -892,16 +956,27 @@ class AplicacaoClinica:
             fg=COR_AZUL_ESCURO,
             padx=14,
             pady=5
-        ).pack(pady=(10, 16))
+        ).pack(pady=(6, 12))
+
+        self.rotulo_esp_proxima = tk.Label(
+            corpo,
+            text="Próxima senha na fila: ---",
+            font=("Arial", 12, "bold"),
+            bg=COR_DOURADO_BG,
+            fg=COR_DOURADO_TXT,
+            padx=16,
+            pady=6
+        )
+        self.rotulo_esp_proxima.pack(pady=(0, 10))
 
         self.rotulo_esp_senha_atual = tk.Label(
             corpo,
             text="Nenhuma senha chamada no momento",
-            font=("Arial", 24, "bold"),
+            font=("Arial", 22, "bold"),
             bg=COR_CARD,
             fg=COR_AZUL_ESCURO
         )
-        self.rotulo_esp_senha_atual.pack(pady=14)
+        self.rotulo_esp_senha_atual.pack(pady=10)
 
         self.rotulo_esp_status_atual = tk.Label(
             corpo,
@@ -910,63 +985,107 @@ class AplicacaoClinica:
             bg=COR_CARD,
             fg=COR_TEXTO_SUAVE
         )
-        self.rotulo_esp_status_atual.pack(pady=(0, 30))
+        self.rotulo_esp_status_atual.pack(pady=(0, 22))
 
         # Botões de controle do fluxo da consulta
         botoes = tk.Frame(corpo, bg=COR_CARD)
-        botoes.pack(pady=10)
+        botoes.pack(pady=8)
+
+        tk.Button(
+            botoes,
+            text="Consultar Próxima",
+            bg=COR_ABA_INATIVA,
+            fg=COR_AZUL_ESCURO,
+            font=("Arial", 11, "bold"),
+            relief="flat",
+            padx=14,
+            pady=14,
+            cursor="hand2",
+            command=self._esp_consultar_proxima
+        ).grid(row=0, column=0, padx=6)
 
         tk.Button(
             botoes,
             text="1. Chamar Próxima Senha",
             bg=COR_AZUL_PRIMARIO,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
             relief="flat",
-            padx=18,
+            padx=16,
             pady=14,
             cursor="hand2",
             command=self._esp_chamar_proxima
-        ).grid(row=0, column=0, padx=8)
+        ).grid(row=0, column=1, padx=6)
 
         tk.Button(
             botoes,
             text="2. Iniciar Atendimento",
             bg=COR_AZUL_MEDIO,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
             relief="flat",
-            padx=18,
+            padx=16,
             pady=14,
             cursor="hand2",
             command=lambda: self._esp_mudar_status("EM_ATENDIMENTO")
-        ).grid(row=0, column=1, padx=8)
+        ).grid(row=0, column=2, padx=6)
 
         tk.Button(
             botoes,
             text="3. Finalizar Consulta",
             bg=COR_AZUL_ESCURO,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
             relief="flat",
-            padx=18,
+            padx=16,
             pady=14,
             cursor="hand2",
             command=lambda: self._esp_mudar_status("FINALIZADO")
-        ).grid(row=0, column=2, padx=8)
+        ).grid(row=0, column=3, padx=6)
 
         tk.Button(
             botoes,
             text="Marcar Ausência",
             bg=COR_PERIGO,
             fg="white",
-            font=("Arial", 12, "bold"),
+            font=("Arial", 11, "bold"),
             relief="flat",
-            padx=18,
+            padx=14,
             pady=14,
             cursor="hand2",
             command=lambda: self._esp_mudar_status("AUSENTE")
-        ).grid(row=0, column=3, padx=8)
+        ).grid(row=0, column=4, padx=6)
+
+        self._atualizar_proxima_especialista()
+
+    def _atualizar_proxima_especialista(self):
+        # Atualiza o aviso com o próximo paciente da fila da especialidade do médico
+        if not self.especialista_logado:
+            return
+        esp_id = self.especialista_logado["profissional"]["especialidade_id"]
+        proxima = self.gerenciador.consultar_proxima(esp_id)
+        if proxima:
+            self.rotulo_esp_proxima.config(
+                text=f"Próxima senha na fila: {proxima['codigo']} — {proxima['tipo']} ({proxima['categoria']})"
+            )
+        else:
+            self.rotulo_esp_proxima.config(text="Próxima senha na fila: Nenhum paciente aguardando")
+
+    def _esp_consultar_proxima(self):
+        # Exibe um alerta detalhando o próximo paciente sem removê-lo da fila
+        esp_id = self.especialista_logado["profissional"]["especialidade_id"]
+        proxima = self.gerenciador.consultar_proxima(esp_id)
+        self._atualizar_proxima_especialista()
+        if proxima:
+            messagebox.showinfo(
+                "Próxima Senha",
+                f"Próxima senha a ser chamada:\n\n"
+                f"Código: {proxima['codigo']}\n"
+                f"Categoria: {proxima['tipo']}\n"
+                f"Critério: {proxima['categoria']}"
+            )
+        else:
+            messagebox.showinfo("Fila Vazia", "Não há pacientes aguardando nesta especialidade.")
 
     def _login_especialista(self):
         # Valida usuário/senha e abre a sala de atendimento
@@ -1022,7 +1141,7 @@ class AplicacaoClinica:
             self.senha_em_atendimento = chamada
             self.ultimas_chamadas_painel.insert(0, chamada)
             self.ultimas_chamadas_painel = self.ultimas_chamadas_painel[:7]
-            self.rotulo_esp_senha_atual.config(text=f"Senha: {chamada['codigo']} ({chamada['categoria']})")
+            self.rotulo_esp_senha_atual.config(text=f"Senha: {chamada['codigo']} — {chamada['tipo']} ({chamada['categoria']})")
             self.rotulo_esp_status_atual.config(text="Status: CHAMADA — Aguardando paciente entrar no consultório")
             self.atualizar_tudo()
             messagebox.showinfo("Chamada Realizada", f"Senha {chamada['codigo']} encaminhada para {profissional['numero_consultorio']}.")
@@ -1411,7 +1530,7 @@ class AplicacaoClinica:
             height=4
         )
         cabecalhos = {
-            "senha": "Senha", "esp": "Especialidade", "cat": "Prioridade",
+            "senha": "Senha", "esp": "Especialidade", "cat": "Critério",
             "cons": "Consultório", "emissao": "Emissão", "chamada": "Chamada",
             "inicio": "Início", "fim": "Fim", "status": "Status"
         }
@@ -1497,14 +1616,19 @@ class AplicacaoClinica:
             self.rotulo_painel_senha.config(text=ultima["codigo"])
             self.rotulo_painel_consultorio.config(text=f"Destino: {ultima['consultorio']}")
             self.rotulo_painel_destino.config(
-                text=f"Especialidade: {ultima['especialidade_nome']}\nCategoria: {ultima['categoria']}"
+                text=f"Especialidade: {ultima['especialidade_nome']}\nCategoria: {ultima['tipo']} ({ultima['categoria']})"
             )
 
         # Atualiza a tabela de últimas senhas chamadas
         for item in self.tabela_ultimas.get_children():
             self.tabela_ultimas.delete(item)
         for chamada in self.ultimas_chamadas_painel[1:7]:
-            self.tabela_ultimas.insert("", tk.END, values=(chamada["codigo"], chamada["consultorio"], chamada["especialidade_nome"], chamada["categoria"]))
+            self.tabela_ultimas.insert("", tk.END, values=(
+                chamada["codigo"],
+                chamada["consultorio"],
+                chamada["especialidade_nome"],
+                chamada["tipo"]
+            ))
 
         # Recalcula o total de pacientes na fila e o tempo estimado de espera
         resumos_tempo = []
@@ -1515,7 +1639,13 @@ class AplicacaoClinica:
             total_geral += qtd
             resumos_tempo.append(f"{esp['nome']}: {qtd} aguardando (~{tempo} min)")
 
-        self.rotulo_total_aguardando.config(text=f"Total de pacientes aguardando na clínica: {total_geral}")
+        contagem_cat = self.gerenciador.contar_por_categoria()
+        self.rotulo_total_aguardando.config(
+            text=f"Total aguardando: {total_geral}   |   "
+                 f"Urgente (U): {contagem_cat['Urgente']}  •  "
+                 f"Preferencial (P): {contagem_cat['Preferencial']}  •  "
+                 f"Normal (N): {contagem_cat['Normal']}"
+        )
         self.rotulo_quadro_tempos.config(text="   •   ".join(resumos_tempo))
 
         # Atualiza a tabela de próximos pacientes ordenados por prioridade
@@ -1533,6 +1663,9 @@ class AplicacaoClinica:
                     senha["categoria"],
                     f"{espera_min} min"
                 ))
+
+        # Atualiza o aviso de próxima senha na tela do médico caso esteja logado
+        self._atualizar_proxima_especialista()
 
         # Se o admin estiver logado, recarrega as tabelas administrativas também
         if self.adm_logado:
