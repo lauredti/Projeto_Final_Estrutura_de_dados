@@ -189,7 +189,7 @@ cd caminho/da/pasta/do/projeto
 ## Passo 3: Instale a biblioteca Pillow
 Digite o comando abaixo no terminal:
 ```bash
-pip install pillow
+python -m pip install pillow
 ```
 *(Se usar Linux/macOS, pode ser `pip3 install pillow`).*
 
