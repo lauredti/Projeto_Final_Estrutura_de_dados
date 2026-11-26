@@ -11,7 +11,7 @@ Projeto desenvolvido para a disciplina de **Estrutura de Dados II** — Centro U
 ## Integrantes do Grupo
 
 * **Arthur** (`@lauredti`)
-* **Juan Moreira Braz** (`@lauredti`)
+* **Juan Moreira Braz** (`@Crustacomics`)
 * **Marcos Vinnicyus Araujo** (`@lauredti`)
 * **Maria Laura Silva** (`@lauredti`)
 
