@@ -2,6 +2,8 @@
 Sistema desktop em Python (Tkinter e SQLite) para gerenciamento de filas e senhas médicas. Possui totem de autoatendimento com triagem por 7 níveis de prioridade, painel de chamadas com tempo médio de espera, área do especialista para controle de consultas e módulo administrativo para gestão de especialidades, consultórios e histórico.
 
 ---
+#Clique na imagem abaixo para visualizar um vídeo demonstrativo do projeto
+
 [![Assista à demonstração do projeto](/imagens/inicial.png)](https://youtu.be/cvBNgyoWIuk?si=Rc82c_OXcgXCo4Bd)
 
 
